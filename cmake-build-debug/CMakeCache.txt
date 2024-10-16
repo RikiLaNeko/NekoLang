@@ -198,6 +198,51 @@ NekoLang_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 NekoLang_SOURCE_DIR:STATIC=/home/dedsec/CLionProjects/NekoLang
 
+//Arguments to supply to pkg-config
+PKG_CONFIG_ARGN:STRING=
+
+//pkg-config executable
+PKG_CONFIG_EXECUTABLE:FILEPATH=/usr/bin/pkg-config
+
+//Path to a library.
+pkgcfg_lib_GTK3_atk-1.0:FILEPATH=/usr/lib/libatk-1.0.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_cairo:FILEPATH=/usr/lib/libcairo.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_cairo-gobject:FILEPATH=/usr/lib/libcairo-gobject.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_gdk-3:FILEPATH=/usr/lib/libgdk-3.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_gdk_pixbuf-2.0:FILEPATH=/usr/lib/libgdk_pixbuf-2.0.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_gio-2.0:FILEPATH=/usr/lib/libgio-2.0.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_glib-2.0:FILEPATH=/usr/lib/libglib-2.0.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_gobject-2.0:FILEPATH=/usr/lib/libgobject-2.0.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_gtk-3:FILEPATH=/usr/lib/libgtk-3.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_harfbuzz:FILEPATH=/usr/lib/libharfbuzz.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_pango-1.0:FILEPATH=/usr/lib/libpango-1.0.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_pangocairo-1.0:FILEPATH=/usr/lib/libpangocairo-1.0.so
+
+//Path to a library.
+pkgcfg_lib_GTK3_z:FILEPATH=/usr/lib/libz.so
+
 
 ########################
 # INTERNAL cache entries
@@ -328,6 +373,76 @@ CMAKE_TAPI-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding PkgConfig
+FIND_PACKAGE_MESSAGE_DETAILS_PkgConfig:INTERNAL=[/usr/bin/pkg-config][v2.1.1()]
+GTK3_CFLAGS:INTERNAL=-I/usr/include/gtk-3.0;-I/usr/include;-I/usr/include/pango-1.0;-I/usr/include/cairo;-I/usr/include/gdk-pixbuf-2.0;-I/usr/include/atk-1.0;-I/usr/include/freetype2;-I/usr/include/glib-2.0;-I/usr/lib/glib-2.0/include;-I/usr/include/harfbuzz;-I/usr/include/libmount;-I/usr/include/blkid;-I/usr/include/libpng16;-I/usr/include/pixman-1;-I/usr/include/cloudproviders;-I/usr/include/at-spi2-atk/2.0;-I/usr/include/at-spi-2.0;-I/usr/include/dbus-1.0;-I/usr/lib/dbus-1.0/include;-I/usr/include/fribidi;-I/usr/include/sysprof-6;-pthread;-I/usr/include/gio-unix-2.0
+GTK3_CFLAGS_I:INTERNAL=
+GTK3_CFLAGS_OTHER:INTERNAL=-pthread
+GTK3_FOUND:INTERNAL=1
+GTK3_INCLUDEDIR:INTERNAL=/usr/include
+GTK3_INCLUDE_DIRS:INTERNAL=/usr/include/gtk-3.0;/usr/include;/usr/include/pango-1.0;/usr/include/cairo;/usr/include/gdk-pixbuf-2.0;/usr/include/atk-1.0;/usr/include/freetype2;/usr/include/glib-2.0;/usr/lib/glib-2.0/include;/usr/include/harfbuzz;/usr/include/libmount;/usr/include/blkid;/usr/include/libpng16;/usr/include/pixman-1;/usr/include/cloudproviders;/usr/include/at-spi2-atk/2.0;/usr/include/at-spi-2.0;/usr/include/dbus-1.0;/usr/lib/dbus-1.0/include;/usr/include/fribidi;/usr/include/sysprof-6;/usr/include/gio-unix-2.0
+GTK3_LDFLAGS:INTERNAL=-L/usr/lib;-lgtk-3;-lgdk-3;-lz;-lharfbuzz;-lpangocairo-1.0;-lpango-1.0;-latk-1.0;-lcairo;-lcairo-gobject;-lgdk_pixbuf-2.0;-lgio-2.0;-lglib-2.0;-lgobject-2.0
+GTK3_LDFLAGS_OTHER:INTERNAL=
+GTK3_LIBDIR:INTERNAL=/usr/lib
+GTK3_LIBRARIES:INTERNAL=gtk-3;gdk-3;z;harfbuzz;pangocairo-1.0;pango-1.0;atk-1.0;cairo;cairo-gobject;gdk_pixbuf-2.0;gio-2.0;glib-2.0;gobject-2.0
+GTK3_LIBRARY_DIRS:INTERNAL=/usr/lib
+GTK3_LIBS:INTERNAL=
+GTK3_LIBS_L:INTERNAL=
+GTK3_LIBS_OTHER:INTERNAL=
+GTK3_LIBS_PATHS:INTERNAL=
+GTK3_MODULE_NAME:INTERNAL=gtk+-3.0
+GTK3_PREFIX:INTERNAL=/usr
+GTK3_STATIC_CFLAGS:INTERNAL=-I/usr/include/gtk-3.0;-I/usr/include;-I/usr/include/pango-1.0;-I/usr/include/cairo;-I/usr/include/gdk-pixbuf-2.0;-I/usr/include/atk-1.0;-I/usr/include/freetype2;-I/usr/include/glib-2.0;-I/usr/lib/glib-2.0/include;-I/usr/include/harfbuzz;-I/usr/include/libmount;-I/usr/include/blkid;-I/usr/include/libpng16;-I/usr/include/pixman-1;-I/usr/include/cloudproviders;-I/usr/include/at-spi2-atk/2.0;-I/usr/include/at-spi-2.0;-I/usr/include/dbus-1.0;-I/usr/lib/dbus-1.0/include;-I/usr/include/fribidi;-I/usr/include/sysprof-6;-pthread;-I/usr/include/gio-unix-2.0;-DLZMA_API_STATIC;-DXML_STATIC
+GTK3_STATIC_CFLAGS_I:INTERNAL=
+GTK3_STATIC_CFLAGS_OTHER:INTERNAL=-pthread;-DLZMA_API_STATIC;-DXML_STATIC
+GTK3_STATIC_INCLUDE_DIRS:INTERNAL=/usr/include/gtk-3.0;/usr/include;/usr/include/pango-1.0;/usr/include/cairo;/usr/include/gdk-pixbuf-2.0;/usr/include/atk-1.0;/usr/include/freetype2;/usr/include/glib-2.0;/usr/lib/glib-2.0/include;/usr/include/harfbuzz;/usr/include/libmount;/usr/include/blkid;/usr/include/libpng16;/usr/include/pixman-1;/usr/include/cloudproviders;/usr/include/at-spi2-atk/2.0;/usr/include/at-spi-2.0;/usr/include/dbus-1.0;/usr/lib/dbus-1.0/include;/usr/include/fribidi;/usr/include/sysprof-6;/usr/include/gio-unix-2.0
+GTK3_STATIC_LDFLAGS:INTERNAL=-L/usr/lib;-lgtk-3;-lgdk-3;-lz;-lpangocairo-1.0;-lm;-lcairo-gobject;-lm;-ldl;-lgdk_pixbuf-2.0;-lm;-lX11;-lpthread;-lXext;-lXfixes;-latk-1.0;-lgmodule-2.0;-pthread;-lwayland-client;-lm;-pthread;-lrt;-lpango-1.0;-lm;-lfreetype;-lfontconfig;-pthread;-lglib-2.0;-lm;-pthread;-lharfbuzz;-pthread;-lm;-lcairo;-lm;-ldl;-lgobject-2.0;-lgio-2.0;-L/usr/lib;-lbrotlicommon;-lgraphite2;-lpcre2-8;-lbz2;-lbrotlidec;-lXau;-lXdmcp;-lmount;-lblkid;-ltiff;-ljbig;-lm;-lzstd;-llzma;-pthread;-lpthread;-ljpeg;-lz;-lpng16;-lm;-lz;-lm;-lexpat;-lm;-lxcb;-lxcb-render;-lxcb-shm;-lpixman-1;-lm;-lXrandr;-lXcursor;-lXcomposite;-lXdamage;-lXinerama;-lffi;-lGL;-lEGL;-lcloudproviders;-latk-bridge-2.0;-latspi;-lXtst;-lXi;-ldbus-1;-lsystemd;-Wl,--export-dynamic;-lxkbcommon;-lwayland-cursor;-lwayland-egl;-lepoxy;-ldl;-lpangoft2-1.0;-lm;-lfribidi;-lthai;-ldatrie;-lXrender;-lXft;-lsysprof-capture-4;-pthread;-lharfbuzz-gobject
+GTK3_STATIC_LDFLAGS_OTHER:INTERNAL=-pthread;-pthread;-pthread;-pthread;-pthread;-pthread;-Wl,--export-dynamic;-pthread
+GTK3_STATIC_LIBDIR:INTERNAL=
+GTK3_STATIC_LIBRARIES:INTERNAL=gtk-3;gdk-3;z;pangocairo-1.0;m;cairo-gobject;m;dl;gdk_pixbuf-2.0;m;X11;pthread;Xext;Xfixes;atk-1.0;gmodule-2.0;wayland-client;m;rt;pango-1.0;m;freetype;fontconfig;glib-2.0;m;harfbuzz;m;cairo;m;dl;gobject-2.0;gio-2.0;brotlicommon;graphite2;pcre2-8;bz2;brotlidec;Xau;Xdmcp;mount;blkid;tiff;jbig;m;zstd;lzma;pthread;jpeg;z;png16;m;z;m;expat;m;xcb;xcb-render;xcb-shm;pixman-1;m;Xrandr;Xcursor;Xcomposite;Xdamage;Xinerama;ffi;GL;EGL;cloudproviders;atk-bridge-2.0;atspi;Xtst;Xi;dbus-1;systemd;xkbcommon;wayland-cursor;wayland-egl;epoxy;dl;pangoft2-1.0;m;fribidi;thai;datrie;Xrender;Xft;sysprof-capture-4;harfbuzz-gobject
+GTK3_STATIC_LIBRARY_DIRS:INTERNAL=/usr/lib;/usr/lib
+GTK3_STATIC_LIBS:INTERNAL=
+GTK3_STATIC_LIBS_L:INTERNAL=
+GTK3_STATIC_LIBS_OTHER:INTERNAL=
+GTK3_STATIC_LIBS_PATHS:INTERNAL=
+GTK3_VERSION:INTERNAL=3.24.43
+GTK3_gtk+-3.0_INCLUDEDIR:INTERNAL=
+GTK3_gtk+-3.0_LIBDIR:INTERNAL=
+GTK3_gtk+-3.0_PREFIX:INTERNAL=
+GTK3_gtk+-3.0_VERSION:INTERNAL=
+//ADVANCED property for variable: PKG_CONFIG_ARGN
+PKG_CONFIG_ARGN-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: PKG_CONFIG_EXECUTABLE
+PKG_CONFIG_EXECUTABLE-ADVANCED:INTERNAL=1
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
+__pkg_config_arguments_GTK3:INTERNAL=REQUIRED;gtk+-3.0
+__pkg_config_checked_GTK3:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_atk-1.0
+pkgcfg_lib_GTK3_atk-1.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_cairo
+pkgcfg_lib_GTK3_cairo-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_cairo-gobject
+pkgcfg_lib_GTK3_cairo-gobject-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_gdk-3
+pkgcfg_lib_GTK3_gdk-3-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_gdk_pixbuf-2.0
+pkgcfg_lib_GTK3_gdk_pixbuf-2.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_gio-2.0
+pkgcfg_lib_GTK3_gio-2.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_glib-2.0
+pkgcfg_lib_GTK3_glib-2.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_gobject-2.0
+pkgcfg_lib_GTK3_gobject-2.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_gtk-3
+pkgcfg_lib_GTK3_gtk-3-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_harfbuzz
+pkgcfg_lib_GTK3_harfbuzz-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_pango-1.0
+pkgcfg_lib_GTK3_pango-1.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_pangocairo-1.0
+pkgcfg_lib_GTK3_pangocairo-1.0-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: pkgcfg_lib_GTK3_z
+pkgcfg_lib_GTK3_z-ADVANCED:INTERNAL=1
+prefix_result:INTERNAL=/usr/lib
 
