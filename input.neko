@@ -1,0 +1,5 @@
+neko {
+    purr "What is your favorite food?";
+    meow food;
+    purr "I like " + food + " too!";
+}

@@ -1,0 +1,4 @@
+neko {
+    kitten name = "Whiskers";
+    purr name;
+}
