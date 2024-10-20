@@ -4,22 +4,16 @@ project(NekoLang C)
 # Set the C standard to C11
 set(CMAKE_C_STANDARD 11)
 
-# Find GTK+ 3 package
+# Find OpenGL and GLFW packages
+find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+pkg_check_modules(GLFW REQUIRED glfw3)
 
-# Include the directories for GTK
-include_directories(${GTK3_INCLUDE_DIRS})
-
-# Link the necessary GTK libraries
-link_directories(${GTK3_LIBRARY_DIRS})
-
-# Suppress some warnings related to GTK libraries
-add_definitions(${GTK3_CFLAGS_OTHER})
+# Include the directories for GLFW
+include_directories(${GLFW_INCLUDE_DIRS})
 
 # Add the executable
 add_executable(NekoLang neko.c)
 
-# Link the GTK libraries with the executable
-target_link_libraries(NekoLang ${GTK3_LIBRARIES})
-
+# Link the necessary OpenGL and GLFW libraries
+target_link_libraries(NekoLang ${OPENGL_LIBRARIES} ${GLFW_LIBRARIES})

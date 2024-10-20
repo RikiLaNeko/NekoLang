@@ -1,0 +1,4 @@
+neko {
+    neko_window "Ma Fenêtre Neko", 800, 600
+    neko_draw_triangle
+}
