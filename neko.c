@@ -29,10 +29,22 @@ typedef struct Function {
 Variable *variables_head = NULL;
 Function *functions_head = NULL;
 
+// Structures for voxel management and player
+typedef struct Voxel {
+    float x, y, z;
+    struct Voxel *next;
+} Voxel;
+
+Voxel *voxels_head = NULL;
+
 // OpenGL-related global variables
 unsigned int VAO = 0, VBO = 0;
 GLFWwindow* gl_window = NULL;
 GLuint shaderProgram = 0;
+
+// Player position and camera angles
+float player_x = 0.0f, player_y = 1.0f, player_z = 5.0f;
+float camera_pitch = 0.0f, camera_yaw = -90.0f;
 
 // Flag to indicate if OpenGL has been initialized
 int opengl_initialized = 0;
@@ -49,52 +61,19 @@ char* get_function_code(const char *name);
 char* trim(char *str);
 void interpret(const char *code, int gui_mode);
 void neko_window(const char *title, int width, int height);
-void neko_draw_triangle();
-void neko_create_button(float x, float y, float width, float height, const char *label);
-void neko_create_text_field(float x, float y, float width, float height);
-void neko_handle_event(const char *event_type, const char *callback_function);
+void neko_draw_scene(); // Only one declaration
+void neko_add_block(float x, float y, float z);
+void neko_remove_block(float x, float y, float z);
 char* read_code_from_file(const char *filename);
 void setup_opengl_objects();
 GLuint compile_shader(const char* source, GLenum type);
 GLuint create_shader_program(const char* vertexSource, const char* fragmentSource);
 void cleanup();
 int detect_gui_mode(const char *code);
+int is_key_pressed(const char *key);
+void neko_set_player_position(float x, float y, float z);
 
-// Event callback storage (simplified for demonstration)
-typedef struct EventCallback {
-    char event_type[NAME_SIZE];
-    char callback_name[NAME_SIZE];
-    struct EventCallback *next;
-} EventCallback;
-
-EventCallback *event_callbacks_head = NULL;
-
-// Function to register an event callback
-void register_event_callback(const char *event_type, const char *callback_name) {
-    EventCallback *new_callback = (EventCallback *)malloc(sizeof(EventCallback));
-    if (new_callback == NULL) {
-        fprintf(stderr, "Memory allocation failed for event callback.\n");
-        exit(EXIT_FAILURE);
-    }
-    strncpy(new_callback->event_type, event_type, NAME_SIZE - 1);
-    new_callback->event_type[NAME_SIZE - 1] = '\0';
-    strncpy(new_callback->callback_name, callback_name, NAME_SIZE - 1);
-    new_callback->callback_name[NAME_SIZE - 1] = '\0';
-    new_callback->next = event_callbacks_head;
-    event_callbacks_head = new_callback;
-}
-
-// Function to get the callback function code by event type
-char* get_event_callback(const char *event_type) {
-    EventCallback *current = event_callbacks_head;
-    while (current != NULL) {
-        if (strcmp(current->event_type, event_type) == 0) {
-            return get_function_code(current->callback_name);
-        }
-        current = current->next;
-    }
-    return NULL;
-}
+// Function implementations
 
 // Function to obtain user input securely
 char* get_user_input(const char *prompt) {
@@ -334,22 +313,21 @@ void setup_opengl_objects() {
     opengl_initialized = 1; // Indicate that OpenGL has been initialized
 }
 
-// Function to draw a triangle (cube)
-void neko_draw_triangle() {
+// Function to draw the scene (render all voxels)
+void neko_draw_scene() {
     if (!opengl_initialized) {
         fprintf(stderr, "OpenGL not initialized. Cannot draw.\n");
         return;
     }
 
     // Clear the color and depth buffers
-    glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+    glClearColor(0.5f, 0.7f, 1.0f, 1.0f); // Sky blue background
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Use the shader program
     glUseProgram(shaderProgram);
 
-    // Define transformation matrices
-    // For simplicity, we'll use basic identity matrices. In a full implementation, you'd use a math library like GLM.
+    // Define transformation matrices (simplified; consider using GLM for complex transformations)
     float model[16] = {
         1, 0, 0, 0,
         0, 1, 0, 0,
@@ -360,7 +338,7 @@ void neko_draw_triangle() {
         1, 0, 0, 0,
         0, 1, 0, 0,
         0, 0, 1, 0,
-        0, 0, -3, 1
+        -player_x, -player_y, -player_z, 1
     };
     float projection[16] = {
         1.29904f, 0, 0, 0,
@@ -380,16 +358,77 @@ void neko_draw_triangle() {
     // Set object and light colors
     GLint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
     GLint lightColorLoc  = glGetUniformLocation(shaderProgram, "lightColor");
-    glUniform3f(objectColorLoc, 0.6f, 0.3f, 0.2f);
-    glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
+    glUniform3f(objectColorLoc, 0.4f, 0.8f, 0.4f); // Green for blocks
+    glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);  // White light
 
-    // Bind VAO and draw the cube
+    // Bind VAO and draw each voxel
     glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+    Voxel *current = voxels_head;
+    while (current != NULL) {
+        // Compute model matrix for each voxel
+        float model_matrix[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            current->x, current->y, current->z, 1
+        };
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, model_matrix);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        current = current->next;
+    }
     glBindVertexArray(0);
 }
 
-// Function to create a window (neko_window)
+// Function to add a block
+void neko_add_block(float x, float y, float z) {
+    // Check if the block already exists
+    Voxel *current = voxels_head;
+    while (current != NULL) {
+        if (current->x == x && current->y == y && current->z == z) {
+            printf("Block already present at (%.1f, %.1f, %.1f).\n", x, y, z);
+            return;
+        }
+        current = current->next;
+    }
+
+    // Add a new block
+    Voxel *new_voxel = (Voxel *)malloc(sizeof(Voxel));
+    if (new_voxel == NULL) {
+        fprintf(stderr, "Memory allocation failed for voxel.\n");
+        exit(EXIT_FAILURE);
+    }
+    new_voxel->x = x;
+    new_voxel->y = y;
+    new_voxel->z = z;
+    new_voxel->next = voxels_head;
+    voxels_head = new_voxel;
+
+    if (verbose) printf("Block added at (%.1f, %.1f, %.1f).\n", x, y, z);
+}
+
+// Function to remove a block
+void neko_remove_block(float x, float y, float z) {
+    Voxel *current = voxels_head;
+    Voxel *prev = NULL;
+    while (current != NULL) {
+        if (current->x == x && current->y == y && current->z == z) {
+            if (prev == NULL) {
+                voxels_head = current->next;
+            } else {
+                prev->next = current->next;
+            }
+            free(current);
+            if (verbose) printf("Block removed at (%.1f, %.1f, %.1f).\n", x, y, z);
+            return;
+        }
+        prev = current;
+        current = current->next;
+    }
+    printf("No block found at (%.1f, %.1f, %.1f).\n", x, y, z);
+}
+
+// Function to create an OpenGL window
 void neko_window(const char *title, int width, int height) {
     if (!glfwInit()) {
         fprintf(stderr, "GLFW initialization failed.\n");
@@ -438,44 +477,53 @@ void neko_window(const char *title, int width, int height) {
     setup_opengl_objects();
 }
 
-// Function to create a GUI button (neko_create_button)
-void neko_create_button(float x, float y, float width, float height, const char *label) {
-    // Placeholder implementation
-    // In a full implementation, you'd render a rectangle and handle click events
-    printf("Button '%s' created at (%.2f, %.2f) with size (%.2f, %.2f)\n", label, x, y, width, height);
+// Function to check if a key is pressed
+int is_key_pressed(const char *key) {
+    if (!opengl_initialized || !gl_window) {
+        return 0;
+    }
+
+    if (strcmp(key, "W") == 0) {
+        return glfwGetKey(gl_window, GLFW_KEY_W) == GLFW_PRESS;
+    } else if (strcmp(key, "S") == 0) {
+        return glfwGetKey(gl_window, GLFW_KEY_S) == GLFW_PRESS;
+    } else if (strcmp(key, "A") == 0) {
+        return glfwGetKey(gl_window, GLFW_KEY_A) == GLFW_PRESS;
+    } else if (strcmp(key, "D") == 0) {
+        return glfwGetKey(gl_window, GLFW_KEY_D) == GLFW_PRESS;
+    } else if (strcmp(key, "ESC") == 0) {
+        return glfwGetKey(gl_window, GLFW_KEY_ESCAPE) == GLFW_PRESS;
+    }
+
+    return 0;
 }
 
-// Function to create a text field (neko_create_text_field)
-void neko_create_text_field(float x, float y, float width, float height) {
-    // Placeholder implementation
-    // In a full implementation, you'd render a rectangle and handle text input
-    printf("Text field created at (%.2f, %.2f) with size (%.2f, %.2f)\n", x, y, width, height);
-}
-
-// Function to handle events (neko_handle_event)
-void neko_handle_event(const char *event_type, const char *callback_function) {
-    register_event_callback(event_type, callback_function);
-    printf("Event '%s' will trigger callback '%s'\n", event_type, callback_function);
+// Function to set the player's position
+void neko_set_player_position(float x, float y, float z) {
+    player_x = x;
+    player_y = y;
+    player_z = z;
+    if (verbose) printf("Player position updated to (%.2f, %.2f, %.2f)\n", player_x, player_y, player_z);
 }
 
 // Function to interpret and execute NekoLang code
 void interpret(const char *code, int gui_mode) {
-    char line[1024];
-    const char *ptr = code;
-    int in_neko_block = 0;
-    int local_opengl_mode = gui_mode;
+    char line[1024];          // Buffer for each line of code
+    const char *ptr = code;   // Pointer to traverse the code
+    int in_neko_block = 0;    // Flag to check if inside a 'neko { }' block
+    int local_opengl_mode = gui_mode; // Local OpenGL mode based on initial scan
 
     while (*ptr != '\0') {
-        // Read a line
+        // Read a line of code
         const char *line_start = ptr;
         while (*ptr != '\n' && *ptr != '\0') {
             ptr++;
         }
         size_t len = ptr - line_start;
-        if (len >= sizeof(line)) len = sizeof(line) - 1;
+        if (len >= sizeof(line)) len = sizeof(line) - 1; // Limit line length
         strncpy(line, line_start, len);
         line[len] = '\0';
-        if (*ptr == '\n') ptr++; // Skip newline
+        if (*ptr == '\n') ptr++; // Skip newline character
 
         // Trim the line
         char *trimmed_line = trim(line);
@@ -560,7 +608,7 @@ void interpret(const char *code, int gui_mode) {
         }
         // Handle 'neko_window' command (create window)
         else if (strncmp(trimmed_line, "neko_window", 11) == 0) {
-            local_opengl_mode = 1; // Enable GUI mode
+            local_opengl_mode = 1; // Enable OpenGL mode
             char *args = trim(trimmed_line + 11);
             char *title = strtok(args, ",");
             char *width_str = strtok(NULL, ",");
@@ -580,46 +628,39 @@ void interpret(const char *code, int gui_mode) {
                 fprintf(stderr, "Invalid arguments for 'neko_window'.\n");
             }
         }
-        // Handle 'neko_draw_triangle' command (draw cube)
-        else if (strcmp(trimmed_line, "neko_draw_triangle") == 0) {
+        // Handle 'neko_draw_scene' command (draw scene)
+        else if (strcmp(trimmed_line, "neko_draw_scene") == 0) {
             if (local_opengl_mode) {
-                neko_draw_triangle();
+                neko_draw_scene();
                 glfwSwapBuffers(gl_window);
                 glfwPollEvents();
+
+                // Handle window close event
+                if (glfwWindowShouldClose(gl_window)) {
+                    break;
+                }
             } else {
                 fprintf(stderr, "Error: OpenGL not initialized. Use 'neko_window' first.\n");
             }
         }
-        // Handle 'neko_create_button' command (create button)
-        else if (strncmp(trimmed_line, "neko_create_button", 19) == 0) {
-            float x, y, width, height;
-            char label[NAME_SIZE];
-            // Parse parameters: x, y, width, height, "label"
-            if (sscanf(trimmed_line, "neko_create_button %f, %f, %f, %f, \"%[^\"]\"", &x, &y, &width, &height, label) == 5) {
-                neko_create_button(x, y, width, height, label);
+        // Handle 'neko_add_block' command (add block)
+        else if (strncmp(trimmed_line, "neko_add_block", 14) == 0) {
+            float x, y, z;
+            // Parse parameters: x, y, z
+            if (sscanf(trimmed_line, "neko_add_block %f, %f, %f", &x, &y, &z) == 3) {
+                neko_add_block(x, y, z);
             } else {
-                fprintf(stderr, "Invalid arguments for 'neko_create_button'.\n");
+                fprintf(stderr, "Invalid arguments for 'neko_add_block'.\n");
             }
         }
-        // Handle 'neko_create_text_field' command (create text field)
-        else if (strncmp(trimmed_line, "neko_create_text_field", 22) == 0) {
-            float x, y, width, height;
-            // Parse parameters: x, y, width, height
-            if (sscanf(trimmed_line, "neko_create_text_field %f, %f, %f, %f", &x, &y, &width, &height) == 4) {
-                neko_create_text_field(x, y, width, height);
+        // Handle 'neko_remove_block' command (remove block)
+        else if (strncmp(trimmed_line, "neko_remove_block", 17) == 0) {
+            float x, y, z;
+            // Parse parameters: x, y, z
+            if (sscanf(trimmed_line, "neko_remove_block %f, %f, %f", &x, &y, &z) == 3) {
+                neko_remove_block(x, y, z);
             } else {
-                fprintf(stderr, "Invalid arguments for 'neko_create_text_field'.\n");
-            }
-        }
-        // Handle 'neko_handle_event' command (event handling)
-        else if (strncmp(trimmed_line, "neko_handle_event", 17) == 0) {
-            char event_type[NAME_SIZE];
-            char callback_name[NAME_SIZE];
-            // Parse parameters: "event_type", "callback_function"
-            if (sscanf(trimmed_line, "neko_handle_event \"%[^\"]\", \"%[^\"]\"", event_type, callback_name) == 2) {
-                neko_handle_event(event_type, callback_name);
-            } else {
-                fprintf(stderr, "Invalid arguments for 'neko_handle_event'.\n");
+                fprintf(stderr, "Invalid arguments for 'neko_remove_block'.\n");
             }
         }
         // Handle 'neko_func' command (function definition)
@@ -647,6 +688,25 @@ void interpret(const char *code, int gui_mode) {
                 fprintf(stderr, "Error: Function '%s' not defined.\n", func_name);
             }
         }
+        // Handle 'is_key_pressed' command
+        else if (strncmp(trimmed_line, "is_key_pressed", 14) == 0) {
+            char key[NAME_SIZE];
+            if (sscanf(trimmed_line, "is_key_pressed \"%[^\"]\"", key) == 1) {
+                int pressed = is_key_pressed(key);
+                printf("%d\n", pressed);
+            } else {
+                fprintf(stderr, "Invalid arguments for 'is_key_pressed'.\n");
+            }
+        }
+        // Handle 'neko_set_player_position' command
+        else if (strncmp(trimmed_line, "neko_set_player_position", 23) == 0) {
+            float x, y, z;
+            if (sscanf(trimmed_line, "neko_set_player_position %f, %f, %f", &x, &y, &z) == 3) {
+                neko_set_player_position(x, y, z);
+            } else {
+                fprintf(stderr, "Invalid arguments for 'neko_set_player_position'.\n");
+            }
+        }
         // Handle unknown commands
         else {
             fprintf(stderr, "Unknown command: %s\n", trimmed_line);
@@ -655,12 +715,33 @@ void interpret(const char *code, int gui_mode) {
 
     // If GUI mode is enabled, run the main OpenGL loop
     if (local_opengl_mode) {
-        setup_opengl_objects();
+        // Main loop
         while (!glfwWindowShouldClose(gl_window)) {
-            neko_draw_triangle();
+            neko_draw_scene();
             glfwSwapBuffers(gl_window);
             glfwPollEvents();
+
+            // Basic player movement controls
+            if (glfwGetKey(gl_window, GLFW_KEY_W) == GLFW_PRESS) {
+                player_z -= 0.05f;
+            }
+            if (glfwGetKey(gl_window, GLFW_KEY_S) == GLFW_PRESS) {
+                player_z += 0.05f;
+            }
+            if (glfwGetKey(gl_window, GLFW_KEY_A) == GLFW_PRESS) {
+                player_x -= 0.05f;
+            }
+            if (glfwGetKey(gl_window, GLFW_KEY_D) == GLFW_PRESS) {
+                player_x += 0.05f;
+            }
+
+            // Close window on ESC key
+            if (glfwGetKey(gl_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+                glfwSetWindowShouldClose(gl_window, GLFW_TRUE);
+            }
         }
+
+        // Clean up resources after the loop
         cleanup();
     }
 }
@@ -722,6 +803,14 @@ void cleanup() {
         glfwTerminate();
     }
 
+    // Free voxels
+    Voxel *current = voxels_head;
+    while (current != NULL) {
+        Voxel *temp = current;
+        current = current->next;
+        free(temp);
+    }
+
     // Free variables
     Variable *var = variables_head;
     while (var != NULL) {
@@ -736,14 +825,6 @@ void cleanup() {
         Function *temp = func;
         func = func->next;
         free(temp->code);
-        free(temp);
-    }
-
-    // Free event callbacks
-    EventCallback *cb = event_callbacks_head;
-    while (cb != NULL) {
-        EventCallback *temp = cb;
-        cb = cb->next;
         free(temp);
     }
 }
