@@ -5,50 +5,42 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-// Taille maximale des entrées utilisateur
-#define INPUT_SIZE 100
+// Define maximum sizes for various inputs and names
+#define INPUT_SIZE 256
+#define NAME_SIZE 64
+#define VALUE_SIZE 256
+#define FUNCTION_CODE_SIZE 4096
 
-// Taille maximale des noms de variables et fonctions
-#define NAME_SIZE 50
-
-// Taille maximale des valeurs de variables
-#define VALUE_SIZE 100
-
-// Taille maximale du code des fonctions
-#define FUNCTION_CODE_SIZE 1000
-
-// Définition de structures pour les variables et les fonctions
-
-// Structure pour stocker une variable
+// Structure to store a variable
 typedef struct Variable {
     char name[NAME_SIZE];
     char value[VALUE_SIZE];
     struct Variable *next;
 } Variable;
 
-// Structure pour stocker une fonction
+// Structure to store a function
 typedef struct Function {
     char name[NAME_SIZE];
     char *code;
     struct Function *next;
 } Function;
 
-// Pointeurs vers les listes chaînées de variables et fonctions
+// Linked lists for variables and functions
 Variable *variables_head = NULL;
 Function *functions_head = NULL;
 
-// Variables globales pour OpenGL
+// OpenGL-related global variables
 unsigned int VAO = 0, VBO = 0;
 GLFWwindow* gl_window = NULL;
 GLuint shaderProgram = 0;
 
-// Indicateur d'initialisation OpenGL
+// Flag to indicate if OpenGL has been initialized
 int opengl_initialized = 0;
 
-// Mode verbose
+// Verbose mode flag
 int verbose = 0;
 
-// Déclarations des fonctions
+// Function declarations
 char* get_user_input(const char *prompt);
 void set_variable(const char *name, const char *value);
 char* get_variable(const char *name);
@@ -58,6 +50,9 @@ char* trim(char *str);
 void interpret(const char *code, int gui_mode);
 void neko_window(const char *title, int width, int height);
 void neko_draw_triangle();
+void neko_create_button(float x, float y, float width, float height, const char *label);
+void neko_create_text_field(float x, float y, float width, float height);
+void neko_handle_event(const char *event_type, const char *callback_function);
 char* read_code_from_file(const char *filename);
 void setup_opengl_objects();
 GLuint compile_shader(const char* source, GLenum type);
@@ -65,20 +60,55 @@ GLuint create_shader_program(const char* vertexSource, const char* fragmentSourc
 void cleanup();
 int detect_gui_mode(const char *code);
 
-// Fonction pour obtenir l'entrée utilisateur avec sécurité
+// Event callback storage (simplified for demonstration)
+typedef struct EventCallback {
+    char event_type[NAME_SIZE];
+    char callback_name[NAME_SIZE];
+    struct EventCallback *next;
+} EventCallback;
+
+EventCallback *event_callbacks_head = NULL;
+
+// Function to register an event callback
+void register_event_callback(const char *event_type, const char *callback_name) {
+    EventCallback *new_callback = (EventCallback *)malloc(sizeof(EventCallback));
+    if (new_callback == NULL) {
+        fprintf(stderr, "Memory allocation failed for event callback.\n");
+        exit(EXIT_FAILURE);
+    }
+    strncpy(new_callback->event_type, event_type, NAME_SIZE - 1);
+    new_callback->event_type[NAME_SIZE - 1] = '\0';
+    strncpy(new_callback->callback_name, callback_name, NAME_SIZE - 1);
+    new_callback->callback_name[NAME_SIZE - 1] = '\0';
+    new_callback->next = event_callbacks_head;
+    event_callbacks_head = new_callback;
+}
+
+// Function to get the callback function code by event type
+char* get_event_callback(const char *event_type) {
+    EventCallback *current = event_callbacks_head;
+    while (current != NULL) {
+        if (strcmp(current->event_type, event_type) == 0) {
+            return get_function_code(current->callback_name);
+        }
+        current = current->next;
+    }
+    return NULL;
+}
+
+// Function to obtain user input securely
 char* get_user_input(const char *prompt) {
-    static char input[INPUT_SIZE]; // Buffer pour l'entrée utilisateur
-    printf("%s", prompt);          // Afficher l'invite à l'utilisateur
-    if (fgets(input, sizeof(input), stdin) != NULL) { // Lire l'entrée
-        input[strcspn(input, "\n")] = '\0'; // Supprimer le caractère de nouvelle ligne
+    static char input[INPUT_SIZE];
+    printf("%s", prompt);
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        input[strcspn(input, "\n")] = '\0'; // Remove newline
     }
     return input;
 }
 
-// Fonction pour définir ou mettre à jour une variable
+// Function to set or update a variable
 void set_variable(const char *name, const char *value) {
     Variable *current = variables_head;
-    // Parcourir la liste pour vérifier si la variable existe déjà
     while (current != NULL) {
         if (strcmp(current->name, name) == 0) {
             strncpy(current->value, value, VALUE_SIZE - 1);
@@ -87,10 +117,10 @@ void set_variable(const char *name, const char *value) {
         }
         current = current->next;
     }
-    // Si la variable n'existe pas, créer une nouvelle variable
+    // Create a new variable if it doesn't exist
     Variable *new_var = (Variable *)malloc(sizeof(Variable));
     if (new_var == NULL) {
-        fprintf(stderr, "Erreur d'allocation mémoire pour la variable.\n");
+        fprintf(stderr, "Memory allocation failed for variable.\n");
         exit(EXIT_FAILURE);
     }
     strncpy(new_var->name, name, NAME_SIZE - 1);
@@ -101,7 +131,7 @@ void set_variable(const char *name, const char *value) {
     variables_head = new_var;
 }
 
-// Fonction pour obtenir la valeur d'une variable
+// Function to get a variable's value
 char* get_variable(const char *name) {
     Variable *current = variables_head;
     while (current != NULL) {
@@ -110,32 +140,31 @@ char* get_variable(const char *name) {
         }
         current = current->next;
     }
-    return NULL; // Variable non trouvée
+    return NULL; // Variable not found
 }
 
-// Fonction pour stocker une définition de fonction
+// Function to store a function definition
 void store_function(const char *name, const char *code) {
     Function *current = functions_head;
-    // Vérifier si la fonction existe déjà
     while (current != NULL) {
         if (strcmp(current->name, name) == 0) {
-            free(current->code); // Libérer l'ancien code
-            current->code = strdup(code); // Copier le nouveau code
+            free(current->code);
+            current->code = strdup(code);
             return;
         }
         current = current->next;
     }
-    // Si la fonction n'existe pas, créer une nouvelle fonction
+    // Create a new function if it doesn't exist
     Function *new_func = (Function *)malloc(sizeof(Function));
     if (new_func == NULL) {
-        fprintf(stderr, "Erreur d'allocation mémoire pour la fonction.\n");
+        fprintf(stderr, "Memory allocation failed for function.\n");
         exit(EXIT_FAILURE);
     }
     strncpy(new_func->name, name, NAME_SIZE - 1);
     new_func->name[NAME_SIZE - 1] = '\0';
     new_func->code = strdup(code);
     if (new_func->code == NULL) {
-        fprintf(stderr, "Erreur d'allocation mémoire pour le code de la fonction.\n");
+        fprintf(stderr, "Memory allocation failed for function code.\n");
         free(new_func);
         exit(EXIT_FAILURE);
     }
@@ -143,7 +172,7 @@ void store_function(const char *name, const char *code) {
     functions_head = new_func;
 }
 
-// Fonction pour obtenir le code d'une fonction par son nom
+// Function to get a function's code by name
 char* get_function_code(const char *name) {
     Function *current = functions_head;
     while (current != NULL) {
@@ -152,211 +181,319 @@ char* get_function_code(const char *name) {
         }
         current = current->next;
     }
-    return NULL; // Fonction non trouvée
+    return NULL; // Function not found
 }
 
-// Fonction pour supprimer les espaces en début et en fin, et les points-virgules
+// Function to trim leading and trailing whitespace and semicolons
 char* trim(char *str) {
-    if (str == NULL) return NULL; // Gérer les entrées NULL
+    if (str == NULL) return NULL;
 
-    // Supprimer les espaces en début
+    // Trim leading whitespace
     while (*str == ' ' || *str == '\t') str++;
 
-    // Supprimer les espaces en fin
+    // Trim trailing whitespace and semicolons
     char *end = str + strlen(str) - 1;
     while (end > str && (*end == ' ' || *end == '\n' || *end == ';')) end--;
-    *(end + 1) = '\0'; // Terminer la chaîne
+    *(end + 1) = '\0';
 
     return str;
 }
 
-// Fonction pour compiler un shader
+// Function to compile a shader
 GLuint compile_shader(const char* source, GLenum type) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
 
-    // Vérifier les erreurs de compilation
+    // Check for compilation errors
     int success;
     char infoLog[512];
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
         const char *shader_type = (type == GL_VERTEX_SHADER) ? "VERTEX" : "FRAGMENT";
-        fprintf(stderr, "Erreur de compilation du shader %s:\n%s\n", shader_type, infoLog);
+        fprintf(stderr, "Shader Compilation Error (%s):\n%s\n", shader_type, infoLog);
     }
     return shader;
 }
 
-// Fonction pour créer un programme shader
+// Function to create a shader program
 GLuint create_shader_program(const char* vertexSource, const char* fragmentSource) {
     GLuint vertexShader = compile_shader(vertexSource, GL_VERTEX_SHADER);
     GLuint fragmentShader = compile_shader(fragmentSource, GL_FRAGMENT_SHADER);
 
-    // Créer le programme shader
+    // Create shader program
     GLuint program = glCreateProgram();
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
     glLinkProgram(program);
 
-    // Vérifier les erreurs de lien
+    // Check for linking errors
     int success;
     char infoLog[512];
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(program, 512, NULL, infoLog);
-        fprintf(stderr, "Erreur de lien du programme shader:\n%s\n", infoLog);
+        fprintf(stderr, "Shader Program Linking Error:\n%s\n", infoLog);
     }
 
-    // Supprimer les shaders une fois liés
+    // Delete shaders as they're linked into our program now and no longer necessary
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
     return program;
 }
 
-// Fonction pour initialiser les objets OpenGL
+// Function to set up OpenGL objects (e.g., VAO, VBO)
 void setup_opengl_objects() {
-    // Définition des vertices du triangle
+    // Define vertices for a cube
     float vertices[] = {
-        -0.5f, -0.5f, 0.0f,  // Bas à gauche
-         0.5f, -0.5f, 0.0f,  // Bas à droite
-         0.0f,  0.5f, 0.0f   // Haut
+        // positions
+        -0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+
+        -0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+
+        -0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
+
+        -0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f
     };
 
-    // Générer et lier le Vertex Array Object (VAO)
+    // Generate and bind VAO and VBO
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
 
-    // Générer et lier le Vertex Buffer Object (VBO)
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // Spécifier le format des vertices
+    // Define vertex attribute pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Délier le VAO et le VBO pour éviter les modifications involontaires
+    // Unbind VAO and VBO
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    // Définir les sources des shaders
+    // Define shader sources
     const char* vertexShaderSource = "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
-        "void main() {\n"
-        "   gl_Position = vec4(aPos, 1.0);\n"
+        "uniform mat4 model;\n"
+        "uniform mat4 view;\n"
+        "uniform mat4 projection;\n"
+        "void main()\n"
+        "{\n"
+        "   gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
         "}\0";
 
     const char* fragmentShaderSource = "#version 330 core\n"
         "out vec4 FragColor;\n"
-        "void main() {\n"
-        "   FragColor = vec4(1.0, 0.5, 0.2, 1.0);\n"
+        "uniform vec3 objectColor;\n"
+        "uniform vec3 lightColor;\n"
+        "void main()\n"
+        "{\n"
+        "   FragColor = vec4(lightColor * objectColor, 1.0);\n"
         "}\n\0";
 
-    // Créer le programme shader
+    // Create shader program
     shaderProgram = create_shader_program(vertexShaderSource, fragmentShaderSource);
-    opengl_initialized = 1; // Indiquer que OpenGL a été initialisé
+    opengl_initialized = 1; // Indicate that OpenGL has been initialized
 }
 
-// Fonction pour dessiner un triangle
+// Function to draw a triangle (cube)
 void neko_draw_triangle() {
-    // Nettoyer l'écran avec une couleur de fond (bleu foncé)
-    glClearColor(0.0f, 0.0f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    if (!opengl_initialized) {
+        fprintf(stderr, "OpenGL not initialized. Cannot draw.\n");
+        return;
+    }
 
-    // Utiliser le programme shader
+    // Clear the color and depth buffers
+    glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Use the shader program
     glUseProgram(shaderProgram);
 
-    // Lier le VAO et dessiner le triangle
-    glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    // Define transformation matrices
+    // For simplicity, we'll use basic identity matrices. In a full implementation, you'd use a math library like GLM.
+    float model[16] = {
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    };
+    float view[16] = {
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, -3, 1
+    };
+    float projection[16] = {
+        1.29904f, 0, 0, 0,
+        0, 1.73205f, 0, 0,
+        0, 0, -1.002f, -0.2002f,
+        0, 0, -1, 0
+    };
 
-    // Délier le VAO
+    // Pass matrices to shader
+    GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
+    GLint viewLoc  = glGetUniformLocation(shaderProgram, "view");
+    GLint projLoc  = glGetUniformLocation(shaderProgram, "projection");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, model);
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
+
+    // Set object and light colors
+    GLint objectColorLoc = glGetUniformLocation(shaderProgram, "objectColor");
+    GLint lightColorLoc  = glGetUniformLocation(shaderProgram, "lightColor");
+    glUniform3f(objectColorLoc, 0.6f, 0.3f, 0.2f);
+    glUniform3f(lightColorLoc, 1.0f, 1.0f, 1.0f);
+
+    // Bind VAO and draw the cube
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
 }
 
-// Fonction pour créer une fenêtre OpenGL (Commande "neko_window")
+// Function to create a window (neko_window)
 void neko_window(const char *title, int width, int height) {
     if (!glfwInit()) {
-        fprintf(stderr, "Erreur lors de l'initialisation de GLFW\n");
+        fprintf(stderr, "GLFW initialization failed.\n");
         exit(EXIT_FAILURE);
     }
 
-    // Configuration des paramètres de la fenêtre
+    // Configure GLFW for OpenGL 3.3 Core Profile
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE); // Activer le double buffering
+    glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE); // Enable double buffering
 
 #ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Nécessaire pour Mac
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Necessary for Mac
 #endif
 
-    // Créer la fenêtre GLFW
+    // Create the GLFW window
     gl_window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!gl_window) {
-        fprintf(stderr, "Erreur lors de la création de la fenêtre OpenGL\n");
+        fprintf(stderr, "Failed to create GLFW window.\n");
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
 
-    // Définir le contexte OpenGL
+    // Make the OpenGL context current
     glfwMakeContextCurrent(gl_window);
 
-    // Activer le V-Sync
+    // Enable V-Sync
     glfwSwapInterval(1);
 
-    // Initialiser GLEW
+    // Initialize GLEW
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
-        fprintf(stderr, "Erreur lors de l'initialisation de GLEW\n");
+        fprintf(stderr, "GLEW initialization failed.\n");
         glfwDestroyWindow(gl_window);
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
 
-    // Définir la zone de rendu
-    glViewport(0, 0, width, height);
+    // Set the viewport
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(gl_window, &fbWidth, &fbHeight);
+    glViewport(0, 0, fbWidth, fbHeight);
+
+    // Setup OpenGL objects (VAO, VBO, Shaders)
+    setup_opengl_objects();
 }
 
-// Fonction pour interpréter et exécuter le code NekoLang
+// Function to create a GUI button (neko_create_button)
+void neko_create_button(float x, float y, float width, float height, const char *label) {
+    // Placeholder implementation
+    // In a full implementation, you'd render a rectangle and handle click events
+    printf("Button '%s' created at (%.2f, %.2f) with size (%.2f, %.2f)\n", label, x, y, width, height);
+}
+
+// Function to create a text field (neko_create_text_field)
+void neko_create_text_field(float x, float y, float width, float height) {
+    // Placeholder implementation
+    // In a full implementation, you'd render a rectangle and handle text input
+    printf("Text field created at (%.2f, %.2f) with size (%.2f, %.2f)\n", x, y, width, height);
+}
+
+// Function to handle events (neko_handle_event)
+void neko_handle_event(const char *event_type, const char *callback_function) {
+    register_event_callback(event_type, callback_function);
+    printf("Event '%s' will trigger callback '%s'\n", event_type, callback_function);
+}
+
+// Function to interpret and execute NekoLang code
 void interpret(const char *code, int gui_mode) {
-    char line[256];          // Buffer pour chaque ligne de code
-    const char *ptr = code;  // Pointeur pour parcourir le code
-    int in_neko_block = 0;   // Flag pour vérifier si on est dans un bloc 'neko { }'
-    int local_opengl_mode = gui_mode; // Mode OpenGL local basé sur le scan initial
+    char line[1024];
+    const char *ptr = code;
+    int in_neko_block = 0;
+    int local_opengl_mode = gui_mode;
 
     while (*ptr != '\0') {
-        // Lire une ligne du code
+        // Read a line
         const char *line_start = ptr;
         while (*ptr != '\n' && *ptr != '\0') {
             ptr++;
         }
         size_t len = ptr - line_start;
-        if (len >= sizeof(line)) len = sizeof(line) - 1; // Limiter la longueur
+        if (len >= sizeof(line)) len = sizeof(line) - 1;
         strncpy(line, line_start, len);
         line[len] = '\0';
-        if (*ptr == '\n') ptr++; // Passer le caractère de nouvelle ligne
+        if (*ptr == '\n') ptr++; // Skip newline
 
-        // Supprimer les espaces inutiles
+        // Trim the line
         char *trimmed_line = trim(line);
 
-        // Ignorer les lignes vides et les commentaires
+        // Skip empty lines and comments
         if (strlen(trimmed_line) == 0 || strncmp(trimmed_line, "//", 2) == 0) continue;
 
-        // Début du bloc 'neko {'
+        // Check for 'neko {' to enter the block
         if (strcmp(trimmed_line, "neko {") == 0 || strcmp(trimmed_line, "neko{") == 0) {
             in_neko_block = 1;
-            if (verbose) printf("Entrée dans le bloc 'neko'.\n");
+            if (verbose) printf("Entering 'neko' block.\n");
             continue;
         }
 
-        // Fin du bloc '}'
+        // Check for '}' to exit the block
         if (strcmp(trimmed_line, "}") == 0) {
             in_neko_block = 0;
-            if (verbose) printf("Sortie du bloc 'neko'.\n");
+            if (verbose) printf("Exiting 'neko' block.\n");
             continue;
         }
 
@@ -364,8 +501,7 @@ void interpret(const char *code, int gui_mode) {
             continue;
         }
 
-        // Traitement des commandes
-        // 1. Commande 'purr' pour afficher du texte
+        // Handle 'purr' command (print)
         if (strncmp(trimmed_line, "purr", 4) == 0) {
             char *msg = trim(trimmed_line + 4);
             char output[1024] = "";
@@ -374,13 +510,13 @@ void interpret(const char *code, int gui_mode) {
             while (token != NULL) {
                 token = trim(token);
                 size_t len = strlen(token);
-                if (len >= 2 && token[0] == '"' && token[len-1] == '"') {
-                    token[len-1] = '\0';
+                if (len >= 2 && token[0] == '"' && token[len - 1] == '"') {
+                    token[len - 1] = '\0';
                     strcat(output, token + 1);
                 } else {
-                    char *variable_value = get_variable(token);
-                    if (variable_value) {
-                        strcat(output, variable_value);
+                    char *var_value = get_variable(token);
+                    if (var_value) {
+                        strcat(output, var_value);
                     } else {
                         strcat(output, "(undefined)");
                     }
@@ -389,107 +525,135 @@ void interpret(const char *code, int gui_mode) {
             }
             printf("%s\n", output);
         }
-        // 2. Commande 'kitten' pour déclarer une variable
+        // Handle 'kitten' command (variable declaration)
         else if (strncmp(trimmed_line, "kitten", 6) == 0) {
-            char *rest = trim((char *)(trimmed_line + 6));
-
+            char *rest = trim(trimmed_line + 6);
             char *equals = strchr(rest, '=');
             if (equals) {
                 *equals = '\0';
                 char *name = trim(rest);
                 char *value = trim(equals + 1);
 
-                // Supprimer les guillemets si présents
-                if (value[0] == '"' && value[strlen(value)-1] == '"') {
+                // Remove quotes if present
+                if (value[0] == '"' && value[strlen(value) - 1] == '"') {
                     value++;
-                    value[strlen(value)-1] = '\0';
+                    value[strlen(value) - 1] = '\0';
                 }
                 set_variable(name, value);
-                if (verbose) printf("Variable '%s' définie avec la valeur '%s'.\n", name, value);
+                if (verbose) printf("Variable '%s' set to '%s'.\n", name, value);
             } else {
-                fprintf(stderr, "Erreur de syntaxe dans la déclaration de variable.\n");
+                fprintf(stderr, "Syntax error in variable declaration.\n");
             }
         }
-        // 3. Commande 'meow' pour obtenir une entrée utilisateur
+        // Handle 'meow' command (user input)
         else if (strncmp(trimmed_line, "meow", 4) == 0) {
-            char *var_name = trim((char *)(trimmed_line + 4));
-
+            char *var_name = trim(trimmed_line + 4);
             char prompt[INPUT_SIZE];
-            snprintf(prompt, sizeof(prompt), "Entrez la valeur pour %s: ", var_name);
-
+            snprintf(prompt, sizeof(prompt), "Enter value for %s: ", var_name);
             char *input = get_user_input(prompt);
             if (input == NULL || input[0] == '\0') {
-                fprintf(stderr, "Erreur: L'entrée pour %s est vide.\n", var_name);
+                fprintf(stderr, "Error: Input for %s is empty.\n", var_name);
                 continue;
             }
             set_variable(var_name, input);
-            if (verbose) printf("Variable '%s' mise à jour avec la valeur '%s'.\n", var_name, input);
+            if (verbose) printf("Variable '%s' updated with value '%s'.\n", var_name, input);
         }
-        // 4. Commande 'neko_window' pour créer une fenêtre OpenGL
+        // Handle 'neko_window' command (create window)
         else if (strncmp(trimmed_line, "neko_window", 11) == 0) {
-            local_opengl_mode = 1; // Activer le mode OpenGL
-
-            char *args = trim((char *)(trimmed_line + 11));
+            local_opengl_mode = 1; // Enable GUI mode
+            char *args = trim(trimmed_line + 11);
             char *title = strtok(args, ",");
             char *width_str = strtok(NULL, ",");
             char *height_str = strtok(NULL, ",");
 
             if (title && width_str && height_str) {
-                // Supprimer les guillemets du titre si présents
-                if (title[0] == '"' && title[strlen(title)-1] == '"') {
-                    title[strlen(title)-1] = '\0';
+                // Remove quotes if present
+                if (title[0] == '"' && title[strlen(title) - 1] == '"') {
+                    title[strlen(title) - 1] = '\0';
                     title++;
                 }
                 int width = atoi(width_str);
                 int height = atoi(height_str);
                 neko_window(title, width, height);
-                if (verbose) printf("Fenêtre OpenGL créée: '%s' (%dx%d).\n", title, width, height);
+                if (verbose) printf("OpenGL window '%s' created with size %dx%d.\n", title, width, height);
             } else {
-                fprintf(stderr, "Erreur: Arguments invalides pour 'neko_window'.\n");
+                fprintf(stderr, "Invalid arguments for 'neko_window'.\n");
             }
         }
-        // 5. Commande 'neko_draw_triangle' pour dessiner un triangle
+        // Handle 'neko_draw_triangle' command (draw cube)
         else if (strcmp(trimmed_line, "neko_draw_triangle") == 0) {
             if (local_opengl_mode) {
                 neko_draw_triangle();
                 glfwSwapBuffers(gl_window);
                 glfwPollEvents();
             } else {
-                fprintf(stderr, "Erreur: OpenGL n'est pas initialisé. Utilisez 'neko_window' d'abord.\n");
+                fprintf(stderr, "Error: OpenGL not initialized. Use 'neko_window' first.\n");
             }
         }
-        // 6. Commande 'neko_func' pour définir une fonction
+        // Handle 'neko_create_button' command (create button)
+        else if (strncmp(trimmed_line, "neko_create_button", 19) == 0) {
+            float x, y, width, height;
+            char label[NAME_SIZE];
+            // Parse parameters: x, y, width, height, "label"
+            if (sscanf(trimmed_line, "neko_create_button %f, %f, %f, %f, \"%[^\"]\"", &x, &y, &width, &height, label) == 5) {
+                neko_create_button(x, y, width, height, label);
+            } else {
+                fprintf(stderr, "Invalid arguments for 'neko_create_button'.\n");
+            }
+        }
+        // Handle 'neko_create_text_field' command (create text field)
+        else if (strncmp(trimmed_line, "neko_create_text_field", 22) == 0) {
+            float x, y, width, height;
+            // Parse parameters: x, y, width, height
+            if (sscanf(trimmed_line, "neko_create_text_field %f, %f, %f, %f", &x, &y, &width, &height) == 4) {
+                neko_create_text_field(x, y, width, height);
+            } else {
+                fprintf(stderr, "Invalid arguments for 'neko_create_text_field'.\n");
+            }
+        }
+        // Handle 'neko_handle_event' command (event handling)
+        else if (strncmp(trimmed_line, "neko_handle_event", 17) == 0) {
+            char event_type[NAME_SIZE];
+            char callback_name[NAME_SIZE];
+            // Parse parameters: "event_type", "callback_function"
+            if (sscanf(trimmed_line, "neko_handle_event \"%[^\"]\", \"%[^\"]\"", event_type, callback_name) == 2) {
+                neko_handle_event(event_type, callback_name);
+            } else {
+                fprintf(stderr, "Invalid arguments for 'neko_handle_event'.\n");
+            }
+        }
+        // Handle 'neko_func' command (function definition)
         else if (strncmp(trimmed_line, "neko_func", 9) == 0) {
-            char *rest = trim((char *)(trimmed_line + 9));
+            char *rest = trim(trimmed_line + 9);
             char *equals = strchr(rest, '=');
             if (equals) {
                 *equals = '\0';
                 char *func_name = trim(rest);
                 char *func_code = trim(equals + 1);
                 store_function(func_name, func_code);
-                if (verbose) printf("Fonction '%s' stockée.\n", func_name);
+                if (verbose) printf("Function '%s' stored.\n", func_name);
             } else {
-                fprintf(stderr, "Erreur de syntaxe dans la définition de fonction.\n");
+                fprintf(stderr, "Syntax error in function definition.\n");
             }
         }
-        // 7. Commande 'call_func' pour appeler une fonction
+        // Handle 'call_func' command (function call)
         else if (strncmp(trimmed_line, "call_func", 9) == 0) {
-            char *func_name = trim((char *)(trimmed_line + 9));
+            char *func_name = trim(trimmed_line + 9);
             char *func_code = get_function_code(func_name);
             if (func_code) {
-                if (verbose) printf("Appel de la fonction '%s'.\n", func_name);
-                interpret(func_code, local_opengl_mode); // Appeler récursivement l'interpréteur avec le code de la fonction
+                if (verbose) printf("Calling function '%s'.\n", func_name);
+                interpret(func_code, local_opengl_mode); // Recursive call
             } else {
-                fprintf(stderr, "Erreur: Fonction '%s' non définie.\n", func_name);
+                fprintf(stderr, "Error: Function '%s' not defined.\n", func_name);
             }
         }
-        // Commande inconnue
+        // Handle unknown commands
         else {
-            fprintf(stderr, "Commande inconnue: %s\n", trimmed_line);
+            fprintf(stderr, "Unknown command: %s\n", trimmed_line);
         }
     }
 
-    // Si le mode OpenGL est activé, exécuter la boucle principale OpenGL
+    // If GUI mode is enabled, run the main OpenGL loop
     if (local_opengl_mode) {
         setup_opengl_objects();
         while (!glfwWindowShouldClose(gl_window)) {
@@ -501,64 +665,64 @@ void interpret(const char *code, int gui_mode) {
     }
 }
 
-// Fonction pour lire le code depuis un fichier
+// Function to read code from a file
 char* read_code_from_file(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        fprintf(stderr, "Erreur: Impossible d'ouvrir le fichier %s\n", filename);
+        fprintf(stderr, "Error: Unable to open file %s\n", filename);
         return NULL;
     }
 
-    // Aller à la fin du fichier pour déterminer sa taille
+    // Determine file size
     fseek(file, 0, SEEK_END);
     long file_size = ftell(file);
     rewind(file);
 
-    // Allouer de la mémoire pour le code
+    // Allocate memory for code
     char *code = (char *)malloc(file_size + 1);
     if (code == NULL) {
-        fprintf(stderr, "Erreur: Échec de l'allocation mémoire.\n");
+        fprintf(stderr, "Error: Memory allocation failed.\n");
         fclose(file);
         return NULL;
     }
 
-    // Lire le contenu du fichier
+    // Read file content
     size_t read_size = fread(code, 1, file_size, file);
-    code[read_size] = '\0'; // Terminer la chaîne
+    code[read_size] = '\0'; // Null-terminate
     fclose(file);
 
     return code;
 }
 
-// Fonction pour détecter si le script utilise OpenGL
+// Function to detect if the script uses GUI mode
 int detect_gui_mode(const char *code) {
-    // Rechercher la présence de 'neko_window' dans le code
+    // Look for the presence of 'neko_window' command
     if (strstr(code, "neko_window") != NULL) {
-        return 1; // Mode GUI détecté
+        return 1; // GUI mode detected
     }
-    return 0; // Mode console
+    return 0; // Console mode
 }
 
-// Fonction de nettoyage des ressources OpenGL et des listes chaînées
+// Function to clean up resources
 void cleanup() {
-    // Supprimer les objets OpenGL seulement s'ils ont été initialisés
+    // Delete OpenGL resources if initialized
     if (opengl_initialized) {
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
         glDeleteProgram(shaderProgram);
     }
 
-    // Détruire la fenêtre GLFW seulement si elle a été créée
+    // Destroy GLFW window if created
     if (gl_window) {
         glfwDestroyWindow(gl_window);
     }
 
-    // Terminer GLFW seulement si OpenGL a été initialisé
+    // Terminate GLFW if initialized
     if (opengl_initialized) {
         glfwTerminate();
     }
 
-    // Libérer les variables
+    // Free variables
     Variable *var = variables_head;
     while (var != NULL) {
         Variable *temp = var;
@@ -566,7 +730,7 @@ void cleanup() {
         free(temp);
     }
 
-    // Libérer les fonctions
+    // Free functions
     Function *func = functions_head;
     while (func != NULL) {
         Function *temp = func;
@@ -574,64 +738,72 @@ void cleanup() {
         free(temp->code);
         free(temp);
     }
+
+    // Free event callbacks
+    EventCallback *cb = event_callbacks_head;
+    while (cb != NULL) {
+        EventCallback *temp = cb;
+        cb = cb->next;
+        free(temp);
+    }
 }
 
+// Alternate main for standalone interpreter
 #ifdef BUILD_NEKO_INTERPRETER
-// Fonction main alternative pour l'interpréteur autonome
 int main(int argc, char *argv[]) {
-    // Lire le code depuis l'entrée standard
-    char code_buffer[10000];
+    // Read code from standard input
+    char code_buffer[FUNCTION_CODE_SIZE];
     size_t len = fread(code_buffer, 1, sizeof(code_buffer) - 1, stdin);
-    code_buffer[len] = '\0'; // Terminer la chaîne
+    code_buffer[len] = '\0'; // Null-terminate
 
-    // Détecter le mode d'exécution (console ou GUI)
+    // Detect execution mode
     int gui_mode = detect_gui_mode(code_buffer);
 
-    // Interpréter le code avec le mode détecté
+    // Interpret the code
     interpret(code_buffer, gui_mode);
 
     return 0;
 }
-#endif  // BUILD_NEKO_INTERPRETER
+#endif // BUILD_NEKO_INTERPRETER
 
-// Fonction principale
+// Main function
 int main(int argc, char *argv[]) {
-    // Vérifier les arguments
+    // Check for at least one argument
     if (argc < 2) {
         printf("Usage: %s <filename> [options]\n", argv[0]);
         printf("Options:\n");
-        printf("  -v      Mode verbose (pour le débogage)\n");
+        printf("  -v      Enable verbose mode for debugging\n");
         return EXIT_FAILURE;
     }
 
-    // Vérifier les arguments pour le mode verbose
+    // Parse command-line arguments for verbose mode
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0) {
             verbose = 1;
         }
     }
 
-    // Lire le code depuis le fichier
+    // Read the NekoLang script from the file
     char *code = read_code_from_file(argv[1]);
     if (code == NULL) {
         return EXIT_FAILURE;
     }
 
-    // Détecter le mode d'exécution (console ou GUI)
+    // Detect execution mode (Console or GUI)
     int gui_mode = detect_gui_mode(code);
 
     if (verbose) {
-        printf("Mode %s activé.\n", gui_mode ? "GUI" : "Console");
-        printf("Exécution du script: %s\n", argv[1]);
+        printf("Mode %s activated.\n", gui_mode ? "GUI" : "Console");
+        printf("Executing script: %s\n", argv[1]);
     }
 
-    // Interpréter le code avec le mode détecté
+    // Interpret the script with the detected mode
     interpret(code, gui_mode);
 
-    // Libérer la mémoire allouée pour le code
+    // Free the allocated memory for code
     free(code);
 
-    // Nettoyer les ressources si non en mode GUI
+    // Clean up resources if not in GUI mode
     if (!gui_mode) {
         cleanup();
     }
