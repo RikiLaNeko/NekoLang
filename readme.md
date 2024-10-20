@@ -160,6 +160,3 @@ Bonjour de NekoLang!
 
 Vous pouvez étendre l'interpréteur en ajoutant de nouvelles commandes ou fonctionnalités à `neko.c`. N'hésitez pas à expérimenter et à ajouter vos propres fonctionnalités inspirées des chats !
 
-## Contact
-
-Pour toute question ou suggestion, n'hésitez pas à nous contacter à : [Vos informations de contact].
