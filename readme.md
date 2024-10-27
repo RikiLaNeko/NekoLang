@@ -38,7 +38,7 @@ Enregistrez le fichier `neko.c` (fourni ci-dessous) dans un répertoire de votre
 Ouvrez votre terminal et naviguez jusqu'au répertoire contenant `neko.c`. Compilez l'interpréteur en utilisant la commande suivante :
 
 ```bash
-gcc -o neko neko.c
+gcc -o neko neko.c -lGL -lGLEW -lglfw
 ```
 
 Cette commande créera un exécutable nommé `neko`.
